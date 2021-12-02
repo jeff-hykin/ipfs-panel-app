@@ -2,7 +2,7 @@
   "license": "MIT",
   "name": "ipfs-panel-app",
   "description": "Everything is detailed in the `documentation/setup.md`!",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "main": "index.js",
   "dependencies": {},
   "devDependencies": {},
