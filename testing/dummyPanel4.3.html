@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+</head>
+<body>
+    
+</body>
+<script>
+// a helper for getting nested values 
+const get = (obj, keyList) => {
+    for (const each of keyList) {
+        try { obj = obj[each] }
+        catch (e) { return null }
+    }
+    return obj == null ? null : obj
+}
+class PanelApp {
+    constructor({ methods }) {
+        window.addEventListener("message", async (event) => {
+            // 
+            // extract args
+            // 
+            try {
+                var { returnKey, keyList, args } = JSON.parse(event.data)
+            } catch (error) {
+                // just tell the app it was 
+                event.source.postMessage(
+                    JSON.stringify({returnKey, error: "Incorrect argument format, needs to be { returnKey, keyList, args }" }),
+                    event.origin
+                )
+                return
+            }
+            // 
+            // get the method
+            // 
+            try {
+                var method = get(methods, keyList)
+            } catch (error) {
+                
+            }
+            if (!(method instanceof Function)) {
+                event.source.postMessage(
+                    JSON.stringify({returnKey, error: `Method ${JSON.stringify(keyList)} does not exist on this PanelApp` }),
+                    event.origin
+                )
+                return
+            }
+            // 
+            // call 
+            // 
+            try {
+                var output = await methods(event.origin, ...args)
+            } catch (error) {
+                event.source.postMessage(
+                    JSON.stringify({returnKey, error}),
+                    event.origin
+                )
+                return
+            }
+            // 
+            // return
+            // 
+            event.source.postMessage(
+                JSON.stringify({returnKey, output }),
+                event.origin
+            )
+        }, false)
+    }
+}
+
+new PanelApp({
+    methods: {
+        ping: ()=>{
+            console.log("returning pong")
+            return "pong"
+        }
+    }
+})
+</script>
+</html>

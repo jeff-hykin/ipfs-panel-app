@@ -1,4 +1,13 @@
-class PanelAppConnection {
+// a helper for getting nested values 
+const get = (obj, keyList) => {
+    for (const each of keyList) {
+        try { obj = obj[each] }
+        catch (e) { return null }
+    }
+    return obj == null ? null : obj
+}
+
+class BasicPanelAppConnection {
     // testSite1: ipfs://bafybeig5cbxsequo5ezixotoedqtjbgpa25hhpmjgnrss3nnddhpvesflq/#!/home
     // testSite2: ipfs://bafybeics44wp6kmqk3t7hgv5px7lggfgkhfeslytu3uw6uiayvyla3dgqa/#QmSS3dUE5oKdyDNvpGsYCXgm2mBW4fSDzC5B3NDf7DR8VR
     // dummyPanel1: ipfs://bafybeigv5wnjxn57cncopudxjh6mbbffcnij3v4gu7oxoadji4cls5gj5m/
@@ -15,30 +24,25 @@ class PanelAppConnection {
             // only pay attention to this specific ipfsAddress
             if (origin === this.origin) {
                 let doCallback = false
-                let output, returnKey
+                let response
                 try {
-                    console.debug(`data is:`,data)
-                    const response = JSON.parse(data)
-                    console.debug(`response is:`,response)
-                    console.debug(`response.returnKey is:`,response.returnKey)
-                    if (typeof response.returnKey == 'string') {
-                        if (this._pendingCalls[response.returnKey] instanceof Array) {
-                            doCallback = true
-                            output = response.output
-                            returnKey = response.returnKey
-                        }
+                    response = JSON.parse(data)
+                    if (response.returnKey && this._pendingCalls[response.returnKey] instanceof Array) {
+                        doCallback = true
                     }
                 } catch (error) {
                     console.debug(`error is:`,error)
                 }
                 if (doCallback) {
-                    const [resolve, reject] = this._pendingCalls[returnKey]
-                    // resolve a pending promise
-                    resolve(output)
+                    const [resolve, reject] = this._pendingCalls[response.returnKey]
+                    // resolve or reject a pending promise
+                    if (response.error) {
+                        reject(response.error)
+                    } else {
+                        resolve(response.output)
+                    }
                     return
                 }
-                // FIXME: call other listeners here
-                console.log(timeStamp, data)
             }
         }, false)
         // 
@@ -58,7 +62,7 @@ class PanelAppConnection {
         document.body.append(this._iFrame)
     }
 
-    send(data) {
+    call(keyList,args=[]) {
         const returnKey = `${Math.random()}`
         let respond = []
         // extract the resolve out of a promise
@@ -81,7 +85,8 @@ class PanelAppConnection {
         this._iFrame.contentWindow.postMessage(
             JSON.stringify({
                 returnKey: returnKey,
-                input: data,
+                keyList,
+                args,
             }),
             this.ipfsAddress,
         )
@@ -90,33 +95,58 @@ class PanelAppConnection {
 }
 
 class PanelApp {
-    constructor() {
-        window.addEventListener("message", (event) => {
-            // FIXME: require the code calling the Panel app to send proof of who they are
-            // then look up / confirm who they are based on local storage preferences and default fallbacks
-            //     import HKP from '@openpgp/hkp-client';
-            //     import { readKey } from 'openpgp';
-            //     (async () => {
-            //         const hkp = new HKP(); // Defaults to https://keyserver.ubuntu.com, or pass another keyserver URL as a string
-            //         const publicKeyArmored = await hkp.lookup({
-            //             query: 'alice@example.com'
-            //         });
-            //         const publicKey = await readKey({
-            //             armoredKey: publicKeyArmored
-            //         });
-            //     })();
-
-            // Do we trust the sender of this message?
-            console.log(event)
-
-            // event.source is window.opener
-            // event.data is "hello there!"
-
-            event.source.postMessage("hi there yourself!  the secret response is: rheeeeet!", event.origin);
+    constructor({ methods }) {
+        window.addEventListener("message", async (event) => {
+            // 
+            // extract args
+            // 
+            try {
+                var { returnKey, keyList, args } = JSON.parse(event.data)
+            } catch (error) {
+                // just tell the app it was 
+                event.source.postMessage(
+                    JSON.stringify({returnKey, error: "Incorrect argument format, needs to be { returnKey, keyList, args }" }),
+                    event.origin
+                )
+                return
+            }
+            // 
+            // get the method
+            // 
+            try {
+                var method = get(methods, keyList)
+            } catch (error) {
+                
+            }
+            if (!(method instanceof Function)) {
+                event.source.postMessage(
+                    JSON.stringify({returnKey, error: `Method ${JSON.stringify(keyList)} does not exist on this PanelApp` }),
+                    event.origin
+                )
+                return
+            }
+            // 
+            // call 
+            // 
+            try {
+                var output = await methods(event.origin, ...args)
+            } catch (error) {
+                event.source.postMessage(
+                    JSON.stringify({returnKey, error}),
+                    event.origin
+                )
+                return
+            }
+            // 
+            // return
+            // 
+            event.source.postMessage(
+                JSON.stringify({returnKey, output }),
+                event.origin
+            )
         }, false)
     }
-} 
-
+}
 
 module.exports = {
     PanelAppConnection,
