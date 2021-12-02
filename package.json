@@ -1,3 +1,22 @@
 {
-  "license": "MIT"
+  "license": "MIT",
+  "name": "ipfs-panel-app",
+  "description": "Everything is detailed in the `documentation/setup.md`!",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeff-hykin/ipfs-panel-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/jeff-hykin/ipfs-panel-app/issues"
+  },
+  "homepage": "https://github.com/jeff-hykin/ipfs-panel-app#readme"
 }
